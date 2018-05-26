@@ -4,31 +4,33 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Http
-import Json.Decode exposing (Decoder, decodeString, field, map2, string)
+import Json.Decode exposing (Decoder, string)
+import Json.Decode.Pipeline exposing (decode, optional)
 
 
 type Msg
-    = MostraEndereco
-    | PreencherCep String
-    | PreencherLogra String
-    | BuscarCep (Result Http.Error Endereco)
+    = FillZipCode String
+    | ReceiveAddress (Result Http.Error Address)
 
 
-type alias Endereco =
+type alias Address =
     { cep : String
     , logradouro : String
+    , bairro : String
+    , localidade : String
+    , uf : String
     }
 
 
 type alias Model =
-    { endereco : Endereco
-    , mensagem : String
+    { address : Address
+    , message : Maybe String
     }
 
 
 init : ( Model, Cmd msg )
 init =
-    ( { endereco = Endereco "" "", mensagem = "" }
+    ( { address = Address "" "" "" "" "", message = Nothing }
     , Cmd.none
     )
 
@@ -39,52 +41,81 @@ url cep =
 
 
 httpCommand : String -> Cmd Msg
-httpCommand cep =
-    cepDecoder
-        |> Http.get (url cep)
-        |> Http.send BuscarCep
+httpCommand zipcode =
+    addressDecoder
+        |> Http.get (url zipcode)
+        |> Http.send ReceiveAddress
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        MostraEndereco ->
-            ( model, Cmd.none )
-
-        PreencherCep valor ->
-            if String.length valor == 8 then
-                ( { model | mensagem = "buscando cep" }, httpCommand valor )
+        FillZipCode zipcode ->
+            if String.length zipcode == 8 then
+                ( { model | message = Just "buscando cep" }, httpCommand zipcode )
             else
-                ( { model | endereco = Endereco valor model.endereco.logradouro }, Cmd.none )
+                ( { model | message = Nothing }, Cmd.none )
 
-        PreencherLogra valor ->
-            ( { model | endereco = Endereco model.endereco.cep valor }, Cmd.none )
+        ReceiveAddress (Ok addressFound) ->
+            ( { model | message = Nothing, address = addressFound }, Cmd.none )
 
-        BuscarCep (Ok enderecoEncontrado) ->
-            ( { model | mensagem = toString enderecoEncontrado }, Cmd.none )
-
-        BuscarCep (Err httpError) ->
-            ( model, Cmd.none )
+        ReceiveAddress (Err httpError) ->
+            ( { model | message = Just "Erro ao buscar endereço" }, Cmd.none )
 
 
-cepDecoder : Decoder Endereco
-cepDecoder =
-    map2 Endereco
-        (field "cep" string)
-        (field "logradouro" string)
+addressDecoder : Decoder Address
+addressDecoder =
+    decode Address
+        |> optional "cep" string ""
+        |> optional "logradouro" string ""
+        |> optional "bairro" string ""
+        |> optional "localidade" string ""
+        |> optional "uf" string ""
 
 
 view : Model -> Html Msg
 view model =
     div
         [ style [ ( "margin", "20px" ) ] ]
-        [ div [ style [ ( "color", "red" ) ] ]
-            [ text (toString <| model.mensagem) ]
+        [ divMessage model
         , input
-            [ type_ "text", placeholder "cep", onInput PreencherCep ]
+            [ type_ "text", placeholder "cep", onInput FillZipCode ]
             []
-        , input [ type_ "text", placeholder "rua", onInput PreencherLogra ] []
+        , inputModel model.address.logradouro "rua" 300
+        , inputModel model.address.bairro "bairro" 200
+        , inputModel model.address.localidade "cidade" 200
+        , inputModel model.address.uf "uf" 200
         ]
+
+
+inputModel : String -> String -> Int -> Html Msg
+inputModel campo label width =
+    input
+        [ type_ "text"
+        , style [ ( "width", toString width ++ "px" ) ]
+        , value campo
+        , placeholder label
+        ]
+        []
+
+
+divMessage : Model -> Html Msg
+divMessage model =
+    div
+        [ style
+            [ ( "color", "red" )
+            , ( "display", toggleMessage model )
+            ]
+        ]
+        [ text (Maybe.withDefault "" model.message) ]
+
+
+toggleMessage : Model -> String
+toggleMessage model =
+    if model.message == Nothing then
+        "none"
+    else
+        "block"
 
 
 main : Program Never Model Msg
