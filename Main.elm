@@ -27,6 +27,8 @@ type alias Model =
     , message : Maybe String
     }
 
+showMessage model = 
+    model.message
 
 init : ( Model, Cmd msg )
 init =
@@ -43,8 +45,11 @@ url cep =
 httpCommand : String -> Cmd Msg
 httpCommand zipcode =
     addressDecoder
-        |> Http.get (url zipcode)
-        |> Http.send ReceiveAddress
+    |> Http.get (url zipcode)
+    |> Http.send ReceiveAddress
+
+
+show model  = model.message 
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -66,48 +71,48 @@ update msg model =
 addressDecoder : Decoder Address
 addressDecoder =
     decode Address
-        |> optional "cep" string ""
-        |> optional "logradouro" string ""
-        |> optional "bairro" string ""
-        |> optional "localidade" string ""
-        |> optional "uf" string ""
+    |> optional "cep" string ""
+    |> optional "logradouro" string ""
+    |> optional "bairro" string ""
+    |> optional "localidade" string ""
+    |> optional "uf" string ""
 
 
 view : Model -> Html Msg
 view model =
     div
-        [ style [ ( "margin", "20px" ) ] ]
-        [ divMessage model
-        , input
-            [ type_ "text", placeholder "cep", onInput FillZipCode ]
-            []
-        , inputModel model.address.logradouro "rua" 300
-        , inputModel model.address.bairro "bairro" 200
-        , inputModel model.address.localidade "cidade" 200
-        , inputModel model.address.uf "uf" 200
-        ]
+    [ style [ ( "margin", "20px" ) ] ]
+    [ divMessage model
+    , input
+    [ type_ "text", placeholder "cep", onInput FillZipCode ]
+    []
+    , inputModel model.address.logradouro "rua" 300
+    , inputModel model.address.bairro "bairro" 200
+    , inputModel model.address.localidade "cidade" 200
+    , inputModel model.address.uf "uf" 200
+    ]
 
 
 inputModel : String -> String -> Int -> Html Msg
 inputModel campo label width =
     input
-        [ type_ "text"
-        , style [ ( "width", toString width ++ "px" ) ]
-        , value campo
-        , placeholder label
-        ]
-        []
+    [ type_ "text"
+    , style [ ( "width", toString width ++ "px" ) ]
+    , value campo
+    , placeholder label
+    ]
+    []
 
 
 divMessage : Model -> Html Msg
 divMessage model =
     div
-        [ style
-            [ ( "color", "red" )
-            , ( "display", toggleMessage model )
-            ]
-        ]
-        [ text (Maybe.withDefault "" model.message) ]
+    [ style
+    [ ( "color", "red" )
+    , ( "display", toggleMessage model )
+    ]
+    ]
+    [ text (Maybe.withDefault "" model.message) ]
 
 
 toggleMessage : Model -> String
@@ -121,8 +126,8 @@ toggleMessage model =
 main : Program Never Model Msg
 main =
     Html.program
-        { init = init
-        , view = view
-        , update = update
-        , subscriptions = \_ -> Sub.none
-        }
+    { init = init
+    , view = view
+    , update = update
+    , subscriptions = \_ -> Sub.none
+    }
